@@ -1,19 +1,21 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 
-# ---------- PAGE CONFIG ----------
+# =========================
+# PAGE CONFIG
+# =========================
 st.set_page_config(
     page_title="Factory Frenzy Leaderboard",
     page_icon="🏭",
-    layout="wide"
+    layout="wide",
 )
 
-# ---------- CUSTOM CSS FOR VIBE ----------
+# =========================
+# CUSTOM CSS (VIBES)
+# =========================
 st.markdown(
     """
     <style>
-    /* Remove default padding */
     .main .block-container {
         padding-top: 1rem;
         padding-bottom: 2rem;
@@ -21,14 +23,12 @@ st.markdown(
         padding-right: 2rem;
     }
 
-    /* Gradient background */
     .stApp {
         background: linear-gradient(135deg, #1e1b4b, #0f766e 40%, #f97316 90%);
         color: #f9fafb;
         font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
-    /* Title styling */
     .leaderboard-title {
         font-size: 2.6rem;
         font-weight: 800;
@@ -42,7 +42,6 @@ st.markdown(
         opacity: 0.9;
     }
 
-    /* Card style */
     .rank-card {
         background: rgba(15,23,42,0.86);
         border-radius: 1.3rem;
@@ -77,7 +76,6 @@ st.markdown(
         margin-top: 0.2rem;
     }
 
-    /* Dataframe tweaks */
     .dataframe td, .dataframe th {
         color: #0f172a !important;
     }
@@ -89,8 +87,9 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# ---------- DATA LOADING HELPERS ----------
-
+# =========================
+# DATA HELPERS
+# =========================
 REQUIRED_COLUMNS = [
     "Team",
     "Reputation",
@@ -101,7 +100,7 @@ REQUIRED_COLUMNS = [
 ]
 
 def preprocess_scores(df: pd.DataFrame) -> pd.DataFrame:
-    """Validate columns, sort, and add Rank."""
+    """Validate columns, convert types, sort, and add Rank."""
     missing = [c for c in REQUIRED_COLUMNS if c not in df.columns]
     if missing:
         st.error(
@@ -111,20 +110,23 @@ def preprocess_scores(df: pd.DataFrame) -> pd.DataFrame:
         st.stop()
 
     df = df.copy()
-    # Ensure numeric types where needed
-    for col in ["Reputation", "Orders", "Accuracy_%", "Budget_Left"]:
+
+    numeric_cols = ["Reputation", "Orders", "Accuracy_%", "Budget_Left"]
+    for col in numeric_cols:
         df[col] = pd.to_numeric(df[col], errors="coerce")
 
-    df = df.sort_values(by="Reputation", ascending=False).reset_index(drop=True)
+    df = df.sort_values("Reputation", ascending=False).reset_index(drop=True)
     df["Rank"] = df.index + 1
     return df
 
 @st.cache_data
-def load_scores_from_default_file(path: str = "scores.xlsx") -> pd.DataFrame:
+def load_default_scores(path: str = "scores.xlsx") -> pd.DataFrame:
     df = pd.read_excel(path)
     return preprocess_scores(df)
 
-# ---------- SIDEBAR: DATA SOURCE + CONTROLS ----------
+# =========================
+# SIDEBAR
+# =========================
 with st.sidebar:
     st.title("⚙️ Controls")
 
@@ -135,15 +137,13 @@ with st.sidebar:
         help="Leave empty to use the default scores.xlsx from the repo.",
     )
 
-    # Decide which dataframe to use
+    # load data
     if uploaded_file is not None:
         df = pd.read_excel(uploaded_file)
         df = preprocess_scores(df)
-        using_uploaded = True
     else:
         try:
-            df = load_scores_from_default_file()
-            using_uploaded = False
+            df = load_default_scores()
         except Exception as e:
             st.error(
                 "Could not load `scores.xlsx`. "
@@ -161,26 +161,26 @@ with st.sidebar:
         index=0,
     )
     ascending = st.toggle("Ascending order", value=False)
-    num_teams = len(df)
 
+    num_teams = len(df)
     if num_teams == 0:
         st.error("No teams found in the data. Please check your scores.xlsx file.")
         st.stop()
 
-    # If there are fewer than 3 teams, start from 1
-    min_n = 1 if num_teams < 3 else 3
-    default_n = num_teams
-
-    show_top_n = st.slider(
-        "Show top N teams",
-        min_n,
-        num_teams,
-        value=default_n,
-    )
+    # safe slider logic
+    if num_teams == 1:
+        st.info("Only one team found — showing that team.")
+        show_top_n = 1
+    else:
+        show_top_n = st.slider(
+            "Show top N teams",
+            min_value=1,
+            max_value=int(num_teams),
+            value=int(num_teams),
+        )
 
     st.markdown("---")
     if st.button("🔄 Refresh data"):
-        # Clears cache so default Excel reloads if edited
         st.cache_data.clear()
         st.experimental_rerun()
 
@@ -188,15 +188,19 @@ with st.sidebar:
         "Tip: update `scores.xlsx` (or upload a new file) and hit refresh to see latest standings."
     )
 
-# ---------- APPLY SORTING & LIMIT ----------
+# =========================
+# APPLY SORTING & LIMIT
+# =========================
 df_sorted = df.sort_values(by=sort_option, ascending=ascending).head(show_top_n).reset_index(drop=True)
 df_sorted["Rank"] = df_sorted.index + 1
 
-# ---------- HEADER ----------
+# =========================
+# HEADER
+# =========================
 st.markdown(
     """
     <div class="leaderboard-title">
-        🏭 Chaos Factory Leaderboard
+        🏭 Factory Frenzy Leaderboard
     </div>
     <div class="leaderboard-subtitle">
         Real-time bragging rights for the most efficient (and least chaotic) factory teams.
@@ -207,14 +211,15 @@ st.markdown(
 
 st.markdown("")
 
-# ---------- TOP 3 SPOTLIGHT ----------
+# =========================
+# TOP 3 SPOTLIGHT
+# =========================
 st.subheader("👑 Top Teams")
 
 top3 = df_sorted.head(3)
 crowns = ["🥇", "🥈", "🥉"]
 accent_emojis = ["🔥", "⚡", "💥"]
 
-# handle case where fewer than 3 teams
 cols = st.columns(3)
 for i in range(len(top3)):
     row = top3.iloc[i]
@@ -232,9 +237,9 @@ for i in range(len(top3)):
                     </span>
                 </div>
                 <div class="rank-meta">
-                    Orders: <b>{int(row['Orders']) if not pd.isna(row['Orders']) else '-'}</b> · 
+                    Orders: <b>{row['Orders']}</b> · 
                     Accuracy: <b>{row['Accuracy_%']}%</b> · 
-                    Budget left: <b>₹{int(row['Budget_Left']) if not pd.isna(row['Budget_Left']) else '-'}</b><br/>
+                    Budget left: <b>₹{row['Budget_Left']}</b><br/>
                     Badges: {row['Badges']}
                 </div>
             </div>
@@ -244,29 +249,26 @@ for i in range(len(top3)):
 
 st.markdown("")
 
-# ---------- FULL LEADERBOARD TABLE ----------
+# =========================
+# FULL TABLE
+# =========================
 st.subheader("📊 Full Leaderboard")
 
 display_cols = ["Rank", "Team", "Reputation", "Orders", "Accuracy_%", "Budget_Left", "Badges"]
-table_df = df_sorted[display_cols].copy()
-table_df = table_df.set_index("Rank")
+table_df = df_sorted[display_cols].copy().set_index("Rank")
 
-st.dataframe(
-    table_df,
-    use_container_width=True,
-)
+st.dataframe(table_df, use_container_width=True)
 
-# ---------- CHARTS ----------
+# =========================
+# CHARTS
+# =========================
 st.markdown("")
-col_chart1, col_chart2 = st.columns(2)
+c1, c2 = st.columns(2)
 
-with col_chart1:
+with c1:
     st.markdown("#### 📈 Reputation distribution")
-    rep_series = df_sorted.set_index("Team")["Reputation"]
-    st.bar_chart(rep_series)
+    st.bar_chart(df_sorted.set_index("Team")["Reputation"])
 
-with col_chart2:
+with c2:
     st.markdown("#### 🎯 Accuracy distribution")
-    acc_series = df_sorted.set_index("Team")["Accuracy_%"]
-    st.bar_chart(acc_series)
-
+    st.bar_chart(df_sorted.set_index("Team")["Accuracy_%"])
