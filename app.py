@@ -161,7 +161,22 @@ with st.sidebar:
         index=0,
     )
     ascending = st.toggle("Ascending order", value=False)
-    show_top_n = st.slider("Show top N teams", 3, len(df), value=len(df))
+    num_teams = len(df)
+
+if num_teams == 0:
+    st.error("No teams found in the data. Please check your scores.xlsx file.")
+    st.stop()
+
+# If there are fewer than 3 teams, start from 1
+min_n = 1 if num_teams < 3 else 3
+default_n = num_teams
+
+show_top_n = st.slider(
+    "Show top N teams",
+    min_n,
+    num_teams,
+    value=default_n,
+)
 
     st.markdown("---")
     if st.button("🔄 Refresh data"):
@@ -254,3 +269,4 @@ with col_chart2:
     st.markdown("#### 🎯 Accuracy distribution")
     acc_series = df_sorted.set_index("Team")["Accuracy_%"]
     st.bar_chart(acc_series)
+
