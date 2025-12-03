@@ -172,11 +172,12 @@ with st.sidebar:
         st.info("Only one team found — showing that team.")
         show_top_n = 1
     else:
+         max_n = min(10, int(num_teams))   # cap at 10
         show_top_n = st.slider(
-            "Show top N teams",
+            "Show top N teams (max 10)",
             min_value=1,
-            max_value=int(num_teams),
-            value=int(num_teams),
+            max_value=max_n,
+            value=max_n,
         )
 
     st.markdown("---")
@@ -272,3 +273,4 @@ with c1:
 with c2:
     st.markdown("#### 🎯 Accuracy distribution")
     st.bar_chart(df_sorted.set_index("Team")["Accuracy_%"])
+
