@@ -99,6 +99,7 @@ REQUIRED_COLUMNS = [
     "Badges",
 ]
 
+
 def preprocess_scores(df: pd.DataFrame) -> pd.DataFrame:
     """Validate columns, convert types, sort, and add Rank."""
     missing = [c for c in REQUIRED_COLUMNS if c not in df.columns]
@@ -119,10 +120,12 @@ def preprocess_scores(df: pd.DataFrame) -> pd.DataFrame:
     df["Rank"] = df.index + 1
     return df
 
+
 @st.cache_data
 def load_default_scores(path: str = "scores.xlsx") -> pd.DataFrame:
     df = pd.read_excel(path)
     return preprocess_scores(df)
+
 
 # =========================
 # SIDEBAR
@@ -137,7 +140,7 @@ with st.sidebar:
         help="Leave empty to use the default scores.xlsx from the repo.",
     )
 
-    # load data
+    # Load data
     if uploaded_file is not None:
         df = pd.read_excel(uploaded_file)
         df = preprocess_scores(df)
@@ -167,12 +170,12 @@ with st.sidebar:
         st.error("No teams found in the data. Please check your scores.xlsx file.")
         st.stop()
 
-    # safe slider logic
+    # Top N slider capped at 10
     if num_teams == 1:
         st.info("Only one team found — showing that team.")
         show_top_n = 1
     else:
-         max_n = min(10, int(num_teams))   # cap at 10
+        max_n = min(10, int(num_teams))   # cap at 10
         show_top_n = st.slider(
             "Show top N teams (max 10)",
             min_value=1,
@@ -192,7 +195,11 @@ with st.sidebar:
 # =========================
 # APPLY SORTING & LIMIT
 # =========================
-df_sorted = df.sort_values(by=sort_option, ascending=ascending).head(show_top_n).reset_index(drop=True)
+df_sorted = (
+    df.sort_values(by=sort_option, ascending=ascending)
+    .head(show_top_n)
+    .reset_index(drop=True)
+)
 df_sorted["Rank"] = df_sorted.index + 1
 
 # =========================
@@ -226,6 +233,9 @@ for i in range(len(top3)):
     row = top3.iloc[i]
     col = cols[i]
     with col:
+        orders_val = "-" if pd.isna(row["Orders"]) else int(row["Orders"])
+        budget_val = "-" if pd.isna(row["Budget_Left"]) else int(row["Budget_Left"])
+
         st.markdown(
             f"""
             <div class="rank-card">
@@ -238,9 +248,9 @@ for i in range(len(top3)):
                     </span>
                 </div>
                 <div class="rank-meta">
-                    Orders: <b>{row['Orders']}</b> · 
+                    Orders: <b>{orders_val}</b> · 
                     Accuracy: <b>{row['Accuracy_%']}%</b> · 
-                    Budget left: <b>₹{row['Budget_Left']}</b><br/>
+                    Budget left: <b>₹{budget_val}</b><br/>
                     Badges: {row['Badges']}
                 </div>
             </div>
@@ -273,4 +283,3 @@ with c1:
 with c2:
     st.markdown("#### 🎯 Accuracy distribution")
     st.bar_chart(df_sorted.set_index("Team")["Accuracy_%"])
-
